@@ -1,7 +1,8 @@
 #pragma once
 
 #ifndef _DATE_HPP_
-#define _DATE_HPP_
+#define _DATE_HPP_ "c++ 1.2.0"
+
 
 
 

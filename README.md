@@ -4,9 +4,8 @@ to handle date by smart object in c++
 
 | programmer  | かずき     |
 | ----------- | ---------- |
-| version     | 1.1.1      |
-| last update | 2026-01-21 |
-
+| version     | 1.2.0      |
+| last update | 2026-01-24 |
 
 ## features
 
@@ -15,7 +14,6 @@ to handle date by smart object in c++
 3. std::cout supportting
 4. customize parse / format support
 5. C std based date calculating
-
 
 ## sample
 
@@ -54,7 +52,6 @@ int main(int argc, char** argv) {
 }
 
 ```
-
 
 the output would be
 

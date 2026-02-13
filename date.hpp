@@ -474,27 +474,18 @@ public:
 
     // == formatting ==
 
-    operator std::string() const {
-        struct tm* tm = localtime(&t);
-
-        std::string s;
-        s.resize(129);
-        strftime(s.data(), s.capacity(), DEFAULT_FORMAT, tm);
-        return s;
-    }
-
     const char* c_str(const char* fmt = DEFAULT_FORMAT, char* buffer = DF_DATE_FORMATTING_BUFFER, size_t buffer_size = DF_DATE_FORMATTING_BUFFER_LENGTH) const {
         struct tm* tm = localtime(&t);
         strftime(buffer, buffer_size, fmt, tm);
         return buffer;
     }
 
-    std::string& to_string(const char* fmt = DEFAULT_FORMAT) const {
-        struct tm* tm = localtime(&t);
+    operator std::string() const {
+        return c_str();
+    }
 
-        std::string s(DF_DATE_FORMATTING_BUFFER_LENGTH, '\0');
-        strftime(s.data(), s.capacity(), fmt, tm);
-        return s;
+    std::string to_string(const char* fmt = DEFAULT_FORMAT) const {
+        return c_str();
     }
 
 

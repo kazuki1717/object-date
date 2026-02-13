@@ -4,8 +4,8 @@ to handle date by smart object in c++
 
 | programmer  | かずき     |
 | ----------- | ---------- |
-| version     | 1.2.0      |
-| last update | 2026-01-24 |
+| version     | 1.2.1      |
+| last update | 2026-02-14 |
 
 ## features
 

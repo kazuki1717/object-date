@@ -4,8 +4,8 @@ to handle date by smart object in c++
 
 | programmer  | かずき     |
 | ----------- | ---------- |
-| version     | 1.2.2      |
-| last update | 2026-02-27 |
+| version     | 1.2.3      |
+| last update | 2026-02-28 |
 
 ## features
 
@@ -22,31 +22,39 @@ to handle date by smart object in c++
 #include <iostream>
 
 int main(int argc, char** argv) {
-    // parse date string by default format
-	df_date_t date("2026-01-21 16:00:00");
-	std::cout << "parsed date1: " << date << std::endl;
+    // == get current time (GMT+0) ==
 
-    // parse date string by customize format
-	date = df_date_t("2026/01/21 16:00", "%Y/%m/%d %H:%M");
-	std::cout << "parsed date2: " << date << std::endl;
-
-    // customize output format
-    std::cout << "customize output format: " << date.to_string("%Y/%m/%d %H:%M:%S") << std::endl;
-
-    // forward/backward date
-	df_interval_t interval("3 year 1 month 4 day 1 hour 5 min 9 sec");
-	std::cout << "create interval_t: " << interval << std::endl;
+    df_date_t now;
+    std::cout << "current time (GMT+0): " << now << "\n"
+            << "current time (local): " << now.to_local_time_string() << "\n\n";
   
-    date += interval;
-	std::cout << "forwarded date: " << date << std::endl;
 
-    // move backward
-    date -= interval;
-    std::cout << "backwarded date: " << date << std::endl;
+    // == parse date string ==
 
-    // move forward 2*7 = 14 days
-	date += df_interval_t("2 week");
-	std::cout << "week keyword used: " << date << std::endl;
+	df_date_t date1("2026-01-21 16:00:00");
+	df_date_t date2("2026/01/21 16:00", "%Y/%m/%d %H:%M");
+
+	std::cout << "parsed date1: " << date1 << "\n"
+            << "parsed date2: " << date2 << "\n"
+            << "customize output format: " << date2.to_string("%Y/%m/%d %H:%M:%S") << "\n\n";    // customize output format
+
+
+    // == adject date ==
+
+	df_interval_t interval("3 year 1 month 4 day 1 hour 5 min 9 sec");
+    date1 += interval;
+    date2 -= interval;
+
+	std::cout << "create interval_t: " << interval << "\n"
+	        << "move front: " << date1 << "\n"
+            << "move back: " << date2 << "\n\n";
+
+  
+
+    df_interval_t two_week("2 week");   // 2 week == 14 day
+	date1 += df_interval_t("2 week");
+
+	std::cout << "week keyword used: " << date1 << "\n\n";
 
     return 0;
 }

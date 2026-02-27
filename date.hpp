@@ -672,16 +672,12 @@ public:
 
     // == formatting ==
 
-    const char* c_str(
-            const char* fmt = DEFAULT_FORMAT,
-            char* buffer = DF_DATE_FORMATTING_BUFFER,
-            size_t buffer_size = DF_DATE_FORMATTING_BUFFER_LENGTH
-    ) const {
+    const char* c_str(const char* fmt = DEFAULT_FORMAT) const {
         struct tm _tm;
         struct tm* tm = df_gmtime(&_tm, &t);
 
-        df_strftime(buffer, fmt, tm);
-        return buffer;
+        df_strftime(DF_DATE_FORMATTING_BUFFER, fmt, tm);
+        return DF_DATE_FORMATTING_BUFFER;
     }
 
     operator std::string() const {
@@ -690,6 +686,21 @@ public:
 
     std::string to_string(const char* fmt = DEFAULT_FORMAT) const {
         return c_str();
+    }
+
+    std::string to_local_time_string(const char* fmt = DEFAULT_FORMAT) const {
+        time_t zero = 0;
+        struct tm* tm;
+        DF_ENV_IS_MSVC(
+            struct tm _tm;
+            localtime_s(&_tm, &zero);
+            tm = &_tm;
+        )
+        DF_ENV_NOT_MSVC(
+            tm = localtime(&zero);
+        )
+
+        return df_date_t(t + tm->tm_hour * DF_HOUR).c_str(fmt);
     }
 
 

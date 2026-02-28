@@ -70,7 +70,7 @@ the output would be
 df_date_t version: c++ 1.3.0 2026-02-28
 
 current time (GMT+0): 2026-02-28 12:03:38
-current time (local): 2026-02-28 20:03:38
+current time (local): 2026-02-28 21:03:38
 
 parsed date1: 2026-01-21 16:00:00
 parsed date2: 2026-01-21 16:00:00

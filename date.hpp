@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef _DF_DATE_HPP_
-#define _DF_DATE_HPP_ "c++ 1.3.0"
+#ifndef DF_DATE_VERSION
+#define DF_DATE_VERSION "c++ 1.3.0 2026-02-28"
 
 
 #include <string.h>
@@ -617,8 +617,8 @@ public:
         return *this;
     }
 
-    df_date_t& operator+(time_t interval) const {
-        return df_date(*this) += interval;
+    df_date_t operator+(time_t interval) const {
+        return df_date_t(*this) += interval;
     }
 
 
@@ -628,8 +628,8 @@ public:
         return *this;
     }
 
-    df_date_t& operator-(time_t interval) const {
-        return df_date(*this) -= interval;
+    df_date_t operator-(time_t interval) const {
+        return df_date_t(*this) -= interval;
     }
 
 
@@ -719,7 +719,7 @@ public:
             tm = localtime(&zero);
         )
 
-        return df_date_t(*this) + tm->tm_hour * DF_HOUR).c_str(fmt);
+        return (*this + tm->tm_hour * DF_HOUR).c_str(fmt);
     }
 
 
@@ -731,4 +731,4 @@ public:
 };
 
 
-#endif // _DF_DATE_HPP_
+#endif // DF_DATE_VERSION

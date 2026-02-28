@@ -22,6 +22,9 @@ to handle date by smart object in c++
 #include <iostream>
 
 int main(int argc, char** argv) {
+    // == print df_date_t version ==
+    std::cout << "df_date_t version: " << DF_DATE_VERSION << "\n\n";
+
     // == get current time (GMT+0) ==
 
     df_date_t now;
@@ -64,11 +67,18 @@ int main(int argc, char** argv) {
 the output would be
 
 ```
+df_date_t version: c++ 1.3.0 2026-02-28
+
+current time (GMT+0): 2026-02-28 12:03:38
+current time (local): 2026-02-28 20:03:38
+
 parsed date1: 2026-01-21 16:00:00
 parsed date2: 2026-01-21 16:00:00
-customize output format: 2026/01/21 16:00:00
-create interval_t: interval_t(3 years, 1 months, 4 days, 1 hours, 5 mintues, 9 seconds)
-forwarded date: 2029-02-25 17:05:09
-backwarded date: 2026-01-21 16:00:00
-week keyword used: 2026-02-04 16:00:00
+customize output format: 2026-01-21 16:00:00
+
+create interval_t: df_interval_t(3 years, 1 months, 4 days, 1 hours, 5 mintues, 9 seconds)
+move front: 2029-02-25 17:05:09
+move back: 2022-12-17 14:54:51
+
+week keyword used: 2029-03-11 17:05:09
 ```

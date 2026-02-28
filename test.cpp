@@ -2,6 +2,9 @@
 #include <iostream>
 
 int main(int argc, char** argv) {
+    // == print df_date_t version ==
+    std::cout << "df_date_t version: " << DF_DATE_VERSION << "\n\n";
+
     // == get current time (GMT+0) ==
 
     df_date_t now;

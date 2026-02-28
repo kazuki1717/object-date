@@ -412,10 +412,16 @@ public:
     }
 
 
-
+/*
     df_date_t& operator=(const char* strdate) {
         parse_date(strdate, DEFAULT_FORMAT);
         return *this;
+    }*/
+
+
+
+    df_date_t(const df_date_t& other) noexcept {
+        t = other.t;
     }
 
 
@@ -611,9 +617,19 @@ public:
         return *this;
     }
 
-    df_date_t& operator+(time_t interval) {
-        t += interval;
+    df_date_t& operator+(time_t interval) {
+        return df_date(*this) += interval;
+    }
+
+
+
+    df_date_t& operator-=(time_t interval) {
+        t -= interval;
         return *this;
+    }
+
+    df_date_t& operator-(time_t interval) {
+        return df_date(*this) -= interval;
     }
 
 
@@ -635,7 +651,7 @@ public:
     }
 
     df_date_t operator+(const df_interval_t& interval) const {
-        return df_date_t(t) += interval;
+        return df_date_t(*this) += interval;
     }
 
 
@@ -658,7 +674,7 @@ public:
     }
 
     df_date_t operator-(const df_interval_t& interval) const {
-        return df_date_t(t) -= interval;
+        return df_date_t(*this) -= interval;
     }
 
 
@@ -700,7 +716,7 @@ public:
             tm = localtime(&zero);
         )
 
-        return df_date_t(t + tm->tm_hour * DF_HOUR).c_str(fmt);
+        return df_date_t(*this) + tm->tm_hour * DF_HOUR).c_str(fmt);
     }
 
 

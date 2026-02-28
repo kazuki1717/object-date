@@ -617,7 +617,7 @@ public:
         return *this;
     }
 
-    df_date_t& operator+(time_t interval) {
+    df_date_t& operator+(time_t interval) const {
         return df_date(*this) += interval;
     }
 
@@ -628,7 +628,7 @@ public:
         return *this;
     }
 
-    df_date_t& operator-(time_t interval) {
+    df_date_t& operator-(time_t interval) const {
         return df_date(*this) -= interval;
     }
 
@@ -676,6 +676,9 @@ public:
     df_date_t operator-(const df_interval_t& interval) const {
         return df_date_t(*this) -= interval;
     }
+
+
+
 
 
 

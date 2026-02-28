@@ -401,7 +401,7 @@ public:
 
 
 
-    constexpr df_date_t(time_t t = time(nullptr) DF_ENV_IS_MSVC(+ 2208988800LL)) : t(t) {}
+    constexpr df_date_t(time_t t = time(nullptr)) : t(t DF_ENV_IS_MSVC(+ 2208988800LL)) {}
 
     df_date_t(const char* strdate, const char* fmt = DEFAULT_FORMAT) {
         parse_date(strdate, fmt);
@@ -666,7 +666,7 @@ public:
     // == converting ==
 
     operator time_t() const {
-        return t;
+        return t DF_ENV_IS_MSVC(- 2208988800LL);
     }
 
 

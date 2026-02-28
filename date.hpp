@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef _DF_DATE_HPP_
-#define _DF_DATE_HPP_ "c++ 1.2.3"
+#define _DF_DATE_HPP_ "c++ 1.3.0"
 
 
 #include <string.h>

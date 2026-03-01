@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef DF_DATE_VERSION
-#define DF_DATE_VERSION "c++ 1.3.2 2026-03-02"
+#define DF_DATE_VERSION "c++ 1.4.0 2026-03-02"
 
 
 #include "exception.hpp"
@@ -24,17 +24,12 @@ constexpr time_t DF_MINUTE = 60;
 constexpr time_t DF_HOUR = 60 * DF_MINUTE;
 constexpr time_t DF_DAY = 24 * DF_HOUR;
 
-constexpr static int DF_ACCUMULATION_MONTH_DAYS[13] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 366};
-constexpr static char DF_MONTHS_FULL_NAMES[12][12] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
-constexpr static char DF_WEEKDAYS_NAMES[7][10] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
-
-
 
 // == exceptions ==
 
 class df_failed_parse_date_exception_t : public df_exception_t {
 public:
-    df_failed_parse_date_exception_t(const char* date_str, const char* fmt) : df_exception_t("failed to parse date since '%s' didn't match any format in '%s'", date_str, fmt) {}
+    df_failed_parse_date_exception_t(const char* date_str, const char* fmt) : df_exception_t("failed to parse date since '%s' there are no meet anyone specifier in '%s'", date_str, fmt) {}
 };
 
 
@@ -80,8 +75,6 @@ int df_strncasecmp(const char* s1, const char* s2, int n) {
     return 0;
 }
 
-
-
 char* df_strncpy_s(char* dest, size_t dest_limit, const char* src, size_t src_length) {
     DF_ENV_IS_MSVC(
         strncpy_s(dest, dest_limit, src, src_length);
@@ -96,8 +89,10 @@ char* df_strncpy_s(char* dest, size_t dest_limit, const char* src, size_t src_le
 
 
 
-// == classes ==
 
+
+
+// == classes ==
 
 class df_interval_t {
 public:
@@ -208,24 +203,32 @@ public:
 
     // == formatting ==
     
-    const char* c_str(char* buffer = DF_DATE_FORMATTING_BUFFER, size_t buffer_size = sizeof(DF_DATE_FORMATTING_BUFFER)) const {
-        snprintf(buffer, buffer_size,
-            "df_interval_t(%d years, %d months, %d days, %d hours, %d mintues, %d seconds)",
-            years, months, days,
-            hours, minutes, seconds
-        );
+    const char* to_cstr(char* buffer = DF_DATE_FORMATTING_BUFFER) const {
+        char* p = buffer;
+
+        p = df_strncpy_s(p, 256, "df_interval_t(", 14);
+        if (years != 0) p += snprintf(p, 256, "%d year ", years);
+        if (months != 0) p += snprintf(p, 256, "%d month ", months);
+        if (days != 0) p += snprintf(p, 256, "%d day ", days);
+        if (hours != 0) p += snprintf(p, 256, "%d hour ", hours);
+        if (minutes != 0) p += snprintf(p, 256, "%d min ", minutes);
+        if (seconds != 0) p += snprintf(p, 256, "%d sec ", seconds);
+        
+        if (*(p-1) == ' ') p--;
+        *(p++) = ')';
+        *(p++) = '\0';
         return buffer;
     }
 
-    operator std::string() const {
-        return std::string(c_str());
+    std::string to_string() const {
+        return to_cstr();
     }
 
 
     // == std::cout ==
 
     friend std::ostream& operator<<(std::ostream& stream, const df_interval_t interval) {
-        return stream << interval.c_str();
+        return stream << interval.to_cstr();
     }
 };
 
@@ -240,10 +243,14 @@ public:
 
     constexpr static char DEFAULT_FORMAT[] = "%Y-%m-%d %H:%M:%S";
 
+    constexpr static int MONTH_TO_YDAY[13] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 366};
+    constexpr static char MONTHS_NAMES[12][12] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
+    constexpr static char WEEKDAYS_NAMES[7][10] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
+
 
     // == core methods ==
 
-    static time_t mktime(const struct tm* tm) {
+    static time_t mktime(const struct tm* tm) noexcept {
         time_t seconds = tm->tm_sec + tm->tm_min * DF_MINUTE + tm->tm_hour * DF_HOUR;
 
         // convert yday / month to second
@@ -270,7 +277,7 @@ public:
 
             // convert month -> yday -> seconds
 
-            yday = DF_ACCUMULATION_MONTH_DAYS[month] + mday - 1;
+            yday = MONTH_TO_YDAY[month] + mday - 1;
 
             if (year%4 == 0 && month > 2) {
                 yday += 1;
@@ -287,7 +294,7 @@ public:
         return seconds;
     }
 
-    static struct tm* gmtime(struct tm* tm, const time_t* t) {
+    static struct tm* gmtime(struct tm* tm, const time_t* t) noexcept {
         DF_ENV_IS_MSVC(
             time_t less = *t;
 
@@ -314,9 +321,9 @@ public:
 
             // find month and mday
             for (int i = 1; i < 13; i++) {
-                if (tm->tm_yday <= DF_ACCUMULATION_MONTH_DAYS[i]) {
+                if (tm->tm_yday <= MONTH_TO_YDAY[i]) {
                     tm->tm_mon = i - 1;
-                    tm->tm_mday = tm->tm_yday - DF_ACCUMULATION_MONTH_DAYS[tm->tm_mon];
+                    tm->tm_mday = tm->tm_yday - MONTH_TO_YDAY[tm->tm_mon];
                     break;
                 }
             }
@@ -336,7 +343,7 @@ public:
         )
     }
 
-    static size_t strftime(char* buf, const char* fmt, const struct tm* tm) {
+    static size_t strftime(char* buf, const char* fmt, const struct tm* tm) noexcept {
         char* out = buf;
         const char* in = fmt;
         int c;
@@ -363,10 +370,10 @@ public:
                     out += snprintf(out, 128, "%02d", tm->tm_mon + 1);
                     continue;
                 case 'B':
-                    out = df_strncpy_s(out, 128, DF_MONTHS_FULL_NAMES[tm->tm_mon], strlen(DF_MONTHS_FULL_NAMES[tm->tm_mon]));
+                    out = df_strncpy_s(out, 128, MONTHS_NAMES[tm->tm_mon], strlen(MONTHS_NAMES[tm->tm_mon]));
                     continue;
                 case 'b':
-                    out = df_strncpy_s(out, 128, DF_MONTHS_FULL_NAMES[tm->tm_mon], 3);
+                    out = df_strncpy_s(out, 128, MONTHS_NAMES[tm->tm_mon], 3);
                     continue;
                 case 'd':
                     out += snprintf(out, 128, "%02d", tm->tm_mday);
@@ -378,10 +385,10 @@ public:
                     out += snprintf(out, 128, "%02d", tm->tm_yday);
                     continue;
                 case 'A':
-                    out = df_strncpy_s(out, 128, DF_WEEKDAYS_NAMES[tm->tm_wday - 1], strlen(DF_WEEKDAYS_NAMES[tm->tm_wday]));
+                    out = df_strncpy_s(out, 128, WEEKDAYS_NAMES[tm->tm_wday - 1], strlen(WEEKDAYS_NAMES[tm->tm_wday]));
                     continue;
                 case 'a':
-                    out = df_strncpy_s(out, 128, DF_WEEKDAYS_NAMES[tm->tm_wday - 1], 3);
+                    out = df_strncpy_s(out, 128, WEEKDAYS_NAMES[tm->tm_wday - 1], 3);
                     continue;
                 case 'u':
                     out += snprintf(out, 128, "%01d", tm->tm_wday);
@@ -430,22 +437,22 @@ public:
 
 
 
-    static size_t parse_month(const char* strmonth, size_t n, int* month) {
+    static size_t parse_month(const char* strmonth, size_t n, int* month) noexcept {
         for (int i = 0; i < 12; i++) {
-            if (df_strncasecmp(strmonth, DF_MONTHS_FULL_NAMES[i], n) == 0) {
+            if (df_strncasecmp(strmonth, MONTHS_NAMES[i], n) == 0) {
                 *month = i;
-                return strlen(DF_MONTHS_FULL_NAMES[i]);
+                return strlen(MONTHS_NAMES[i]);
             }
         }
         return 0;
     }
 
     // parse weekday
-    static size_t parse_weekday(const char* strweek, size_t n, int* week) {
+    static size_t parse_weekday(const char* strweek, size_t n, int* week) noexcept {
         for (int i = 0; i < 7; i++) {
-            if (df_strncasecmp(strweek, DF_WEEKDAYS_NAMES[i], n) == 0) {
+            if (df_strncasecmp(strweek, WEEKDAYS_NAMES[i], n) == 0) {
                 *week = i + 1;
-                return strlen(DF_WEEKDAYS_NAMES[i]);
+                return strlen(WEEKDAYS_NAMES[i]);
             }
         }
         return 0;
@@ -453,7 +460,7 @@ public:
 
     // self strptime for parsing time in win32
     // ! be causeful since this method will not complete all values
-    static int parse(const char* date_str, const char* fmt, struct tm* tm) {
+    static int strptime(const char* date_str, const char* fmt, struct tm* tm) noexcept {
         const char* fmt_start = fmt;
         int symbol, c;
         char buffer[10];
@@ -573,13 +580,13 @@ public:
                 case 'f':
                     continue;   // micro seconds (unusable)
                 case 'c':
-                    date_str += parse(date_str, "%a %b %d %H:%M:%S %Y", tm);
+                    date_str += strptime(date_str, "%a %b %d %H:%M:%S %Y", tm);
                     continue;
                 case 'x':
-                    date_str += parse(date_str, "%d/%m/%y", tm);
+                    date_str += strptime(date_str, "%d/%m/%y", tm);
                     continue;
                 case 'X':
-                    date_str += parse(date_str, "%H:%M:%S", tm);
+                    date_str += strptime(date_str, "%H:%M:%S", tm);
                     continue;
                     
             }
@@ -627,7 +634,7 @@ private:
 
     static time_t _parse(const char* date_str, const char* fmt = DEFAULT_FORMAT) {
         struct tm tm{};
-        if (parse(date_str, fmt, &tm) != 0) {
+        if (strptime(date_str, fmt, &tm) != 0) {
             throw df_failed_parse_date_exception_t(date_str, fmt);
         }
         return mktime(&tm);
@@ -635,7 +642,6 @@ private:
 
 
 public:
-
     constexpr df_date_t() : t(0LL) {}
 
     constexpr df_date_t(time_t t) : t(t DF_ENV_IS_MSVC(+ 2209075200LL)) {}

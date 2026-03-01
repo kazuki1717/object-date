@@ -1,8 +1,10 @@
 #pragma once
 
 #ifndef DF_DATE_VERSION
-#define DF_DATE_VERSION "c++ 1.3.0 2026-02-28"
+#define DF_DATE_VERSION "c++ 1.3.2 2026-03-02"
 
+
+#include "exception.hpp"
 
 #include <string.h>
 #include <time.h>
@@ -14,9 +16,9 @@
 
 
 
+// == constants ==
 
-constexpr size_t DF_DATE_FORMATTING_BUFFER_LENGTH = 256;
-char DF_DATE_FORMATTING_BUFFER[DF_DATE_FORMATTING_BUFFER_LENGTH + 1] = {0};
+char DF_DATE_FORMATTING_BUFFER[256]{};
 
 constexpr time_t DF_MINUTE = 60;
 constexpr time_t DF_HOUR = 60 * DF_MINUTE;
@@ -28,7 +30,16 @@ constexpr static char DF_WEEKDAYS_NAMES[7][10] = {"Monday", "Tuesday", "Wednesda
 
 
 
+// == exceptions ==
 
+class df_failed_parse_date_exception_t : public df_exception_t {
+public:
+    df_failed_parse_date_exception_t(const char* date_str, const char* fmt) : df_exception_t("failed to parse date since '%s' didn't match any format in '%s'", date_str, fmt) {}
+};
+
+
+
+// == pre-processer ==
 
 #ifdef _MSC_VER
 
@@ -49,6 +60,7 @@ constexpr static char DF_WEEKDAYS_NAMES[7][10] = {"Monday", "Tuesday", "Wednesda
 #else
 #define df_sscanf(s, fmt, ...) sscanf(s, fmt, __VA_ARGS__)
 #endif
+
 
 
 
@@ -82,182 +94,9 @@ char* df_strncpy_s(char* dest, size_t dest_limit, const char* src, size_t src_le
 }
 
 
-time_t df_mktime(const struct tm* tm) {
-    time_t seconds = tm->tm_sec + tm->tm_min * DF_MINUTE + tm->tm_hour * DF_HOUR;
-
-    // convert yday / month to second
-    int year = tm->tm_year;
-    int yday = tm->tm_yday;
-    int mon = tm->tm_mon;
-    int mday = tm->tm_mday;
-
-    if (yday != 0) {
-        seconds += (yday - (yday > 0)) * DF_DAY;
-    }
-    else {
-        if (mon < 0 || mon > 12) {
-            year += mon / 12;
-            mon %= 12;
-            if (mon < 0) {
-                year -= 1;
-                mon = 12 + mon;
-            }
-        }
-
-        // convert month to yday to seconds
-        yday += DF_ACCUMULATION_MONTH_DAYS[mon] + (mday - (mday > 0));
-
-        if (year%4 == 0 && mon > 2) {
-            yday += 1;
-        }
-
-        seconds += yday * DF_DAY;
-    }
 
 
-    // convert year to seconds
-
-    int year_noleaped = year % 4;
-
-    seconds += (year - year_noleaped) * (365.25 * DF_DAY) + year_noleaped * 365 * DF_DAY;
-
-    return seconds;
-}
-
-
-struct tm* df_gmtime(struct tm* tm, const time_t* t) {
-    DF_ENV_IS_MSVC(
-        time_t less = t[0];
-
-        // == date ==
-        
-        tm->tm_year = less / (365.25 * DF_DAY);
-        less = less % time_t(365.25 * DF_DAY) + (tm->tm_year % 4) * DF_DAY / 4;
-
-        tm->tm_yday = less / DF_DAY + 1;
-        less %= DF_DAY;
-
-        // find month and mday
-        for (int i = 1; i < 13; i++) {
-            if (tm->tm_yday <= DF_ACCUMULATION_MONTH_DAYS[i]) {
-                tm->tm_mon = i - 1;
-                tm->tm_mday = tm->tm_yday - DF_ACCUMULATION_MONTH_DAYS[tm->tm_mon];
-                break;
-            }
-        }
-
-        // == time ==
-
-        tm->tm_hour = less / DF_HOUR;
-        less %= DF_HOUR;
-
-        tm->tm_min = less / DF_MINUTE;
-        tm->tm_sec = less % DF_MINUTE;
-
-        return tm;
-    )
-    DF_ENV_NOT_MSVC(
-        return gmtime(t);
-    )
-}
-
-
-
-size_t df_strftime(char* buf, const char* fmt, const struct tm* tm) {
-    char* out = buf;
-    const char* in = fmt;
-    int c;
-
-    while ((c = (in++)[0])) {
-        if (c != '%') {
-            (out++)[0] = c;
-            continue;
-        }
-
-        c = (in++)[0];
-        switch (c) {
-            // == date parsing ==
-            case '%':
-                (out++)[0] = c;
-                continue;
-            case 'Y':
-                out += snprintf(out, 128, "%04d", tm->tm_year + 1900);
-                continue;
-            case 'y':
-                out += snprintf(out, 128, "%02d", tm->tm_year % 100);
-                continue;
-            case 'm':
-                out += snprintf(out, 128, "%02d", tm->tm_mon + 1);
-                continue;
-            case 'B':
-                out = df_strncpy_s(out, 128, DF_MONTHS_FULL_NAMES[tm->tm_mon], strlen(DF_MONTHS_FULL_NAMES[tm->tm_mon]));
-                continue;
-            case 'b':
-                out = df_strncpy_s(out, 128, DF_MONTHS_FULL_NAMES[tm->tm_mon], 3);
-                continue;
-            case 'd':
-                out += snprintf(out, 128, "%02d", tm->tm_mday);
-                continue;
-            case 'e':
-                out += snprintf(out, 128, "%02d", tm->tm_mday + 1);
-                continue;
-            case 'j':
-                out += snprintf(out, 128, "%02d", tm->tm_yday);
-                continue;
-            case 'A':
-                out = df_strncpy_s(out, 128, DF_WEEKDAYS_NAMES[tm->tm_wday], strlen(DF_WEEKDAYS_NAMES[tm->tm_wday]));
-                continue;
-            case 'a':
-                out = df_strncpy_s(out, 128, DF_WEEKDAYS_NAMES[tm->tm_wday], 3);
-                continue;
-            case 'u':
-                out += snprintf(out, 128, "%01d", tm->tm_wday);
-                continue;
-            case 'w':
-                out += snprintf(out, 128, "%01d", 7 - tm->tm_wday);
-                continue;
-            
-            // == time ==
-            case 'H':
-                out += snprintf(out, 128, "%02d", tm->tm_hour);
-                continue;
-            case 'l':
-                out += snprintf(out, 128, "%02d", tm->tm_hour % 13);
-                continue;
-            case 'p':
-                out = df_strncpy_s(out, 128, tm->tm_hour < 13 ? "AM" : "PM", 2);
-                continue;
-            case 'M':
-                out += snprintf(out, 128, "%02d", tm->tm_min);
-                continue;
-            case 'S':
-                out += snprintf(out, 128, "%02d", tm->tm_sec);
-                continue;
-            case 'c':
-                out += df_strftime(out, "%a %b %d %H:%M:%S %Y", tm);
-                continue;
-            case 'x':
-                out += df_strftime(out, "%d/%m/%y", tm);
-                continue;
-            case 'X':
-                out += df_strftime(out, "%H:%M:%S", tm);
-                continue;
-            default:
-                (out++)[0] = '%';
-                (out++)[0] = c;
-                continue;
-        }
-    }
-
-    out[0] = 0;
-    return (size_t)(out - buf);
-}
-
-
-
-
-
-
+// == classes ==
 
 
 class df_interval_t {
@@ -369,7 +208,7 @@ public:
 
     // == formatting ==
     
-    const char* c_str(char* buffer = DF_DATE_FORMATTING_BUFFER, size_t buffer_size = DF_DATE_FORMATTING_BUFFER_LENGTH) const {
+    const char* c_str(char* buffer = DF_DATE_FORMATTING_BUFFER, size_t buffer_size = sizeof(DF_DATE_FORMATTING_BUFFER)) const {
         snprintf(buffer, buffer_size,
             "df_interval_t(%d years, %d months, %d days, %d hours, %d mintues, %d seconds)",
             years, months, days,
@@ -393,43 +232,205 @@ public:
 
 
 
-class df_date_t {
-  time_t t;
 
+
+class df_date_t {
 public:
+    // == core constants ==
+
     constexpr static char DEFAULT_FORMAT[] = "%Y-%m-%d %H:%M:%S";
 
 
+    // == core methods ==
 
-    constexpr df_date_t(time_t t = time(nullptr)) : t(t DF_ENV_IS_MSVC(+ 2208988800LL)) {}
+    static time_t mktime(const struct tm* tm) {
+        time_t seconds = tm->tm_sec + tm->tm_min * DF_MINUTE + tm->tm_hour * DF_HOUR;
 
-    df_date_t(const char* strdate, const char* fmt = DEFAULT_FORMAT) {
-        parse_date(strdate, fmt);
+        // convert yday / month to second
+        int year = tm->tm_year;
+        int yday = tm->tm_yday;
+        int month = tm->tm_mon;
+        int mday = tm->tm_mday;
+
+        if (yday != 0) {
+            seconds += (yday - (yday > 0)) * DF_DAY;
+        }
+        else {
+            // adject abnormal month
+
+            if (month < 0 || month > 12) {
+                year += month / 12;
+                month %= 12;
+
+                if (month < 0) {
+                    year -= 1;
+                    month = 12 + month;
+                }
+            }
+
+            // convert month -> yday -> seconds
+
+            yday = DF_ACCUMULATION_MONTH_DAYS[month] + mday - 1;
+
+            if (year%4 == 0 && month > 2) {
+                yday += 1;
+            }
+
+            seconds += yday * DF_DAY;
+        }
+
+        // convert year to seconds
+        
+        int leap_days = year / 4 + (year%4 == 0 ? 0 : 1);
+        seconds += (year * 365 + leap_days) * DF_DAY;
+
+        return seconds;
     }
 
-    df_date_t(const std::string& strdate, const char* fmt = DEFAULT_FORMAT) {
-        parse_date(strdate.c_str(), fmt);
+    static struct tm* gmtime(struct tm* tm, const time_t* t) {
+        DF_ENV_IS_MSVC(
+            time_t less = *t;
+
+            // == week day ==
+
+            tm->tm_wday = (less / DF_DAY) % 7;
+            if (tm->tm_wday < 0) {
+                tm->tm_wday = 7 + tm->tm_wday;
+            }
+            tm->tm_wday += 1;
+
+            // == year ==
+            
+            int leap_days = (less + 1401 * DF_DAY) / (1461 * DF_DAY);
+            less -= leap_days * DF_DAY;
+
+            tm->tm_year = less / (365 * DF_DAY);
+            less -= tm->tm_year * 365 * DF_DAY;
+
+            // == month and day ==
+
+            tm->tm_yday = less / DF_DAY + 1;
+            less %= DF_DAY;
+
+            // find month and mday
+            for (int i = 1; i < 13; i++) {
+                if (tm->tm_yday <= DF_ACCUMULATION_MONTH_DAYS[i]) {
+                    tm->tm_mon = i - 1;
+                    tm->tm_mday = tm->tm_yday - DF_ACCUMULATION_MONTH_DAYS[tm->tm_mon];
+                    break;
+                }
+            }
+
+            // == time ==
+
+            tm->tm_hour = less / DF_HOUR;
+            less %= DF_HOUR;
+
+            tm->tm_min = less / DF_MINUTE;
+            tm->tm_sec = less - tm->tm_min * DF_MINUTE;
+
+            return tm;
+        )
+        DF_ENV_NOT_MSVC(
+            return gmtime(t);
+        )
+    }
+
+    static size_t strftime(char* buf, const char* fmt, const struct tm* tm) {
+        char* out = buf;
+        const char* in = fmt;
+        int c;
+
+        while ((c = (in++)[0])) {
+            if (c != '%') {
+                (out++)[0] = c;
+                continue;
+            }
+
+            c = (in++)[0];
+            switch (c) {
+                // == date parsing ==
+                case '%':
+                    (out++)[0] = c;
+                    continue;
+                case 'Y':
+                    out += snprintf(out, 128, "%04d", tm->tm_year + 1900);
+                    continue;
+                case 'y':
+                    out += snprintf(out, 128, "%02d", tm->tm_year % 100);
+                    continue;
+                case 'm':
+                    out += snprintf(out, 128, "%02d", tm->tm_mon + 1);
+                    continue;
+                case 'B':
+                    out = df_strncpy_s(out, 128, DF_MONTHS_FULL_NAMES[tm->tm_mon], strlen(DF_MONTHS_FULL_NAMES[tm->tm_mon]));
+                    continue;
+                case 'b':
+                    out = df_strncpy_s(out, 128, DF_MONTHS_FULL_NAMES[tm->tm_mon], 3);
+                    continue;
+                case 'd':
+                    out += snprintf(out, 128, "%02d", tm->tm_mday);
+                    continue;
+                case 'e':
+                    out += snprintf(out, 128, "%02d", tm->tm_mday + 1);
+                    continue;
+                case 'j':
+                    out += snprintf(out, 128, "%02d", tm->tm_yday);
+                    continue;
+                case 'A':
+                    out = df_strncpy_s(out, 128, DF_WEEKDAYS_NAMES[tm->tm_wday - 1], strlen(DF_WEEKDAYS_NAMES[tm->tm_wday]));
+                    continue;
+                case 'a':
+                    out = df_strncpy_s(out, 128, DF_WEEKDAYS_NAMES[tm->tm_wday - 1], 3);
+                    continue;
+                case 'u':
+                    out += snprintf(out, 128, "%01d", tm->tm_wday);
+                    continue;
+                case 'w':
+                    out += snprintf(out, 128, "%01d", 7 - tm->tm_wday);
+                    continue;
+                
+                // == time ==
+                case 'H':
+                    out += snprintf(out, 128, "%02d", tm->tm_hour);
+                    continue;
+                case 'l':
+                    out += snprintf(out, 128, "%02d", tm->tm_hour % 13);
+                    continue;
+                case 'p':
+                    out = df_strncpy_s(out, 128, tm->tm_hour < 13 ? "AM" : "PM", 2);
+                    continue;
+                case 'M':
+                    out += snprintf(out, 128, "%02d", tm->tm_min);
+                    continue;
+                case 'S':
+                    out += snprintf(out, 128, "%02d", tm->tm_sec);
+                    continue;
+                case 'c':
+                    out += strftime(out, "%a %b %d %H:%M:%S %Y", tm);
+                    continue;
+                case 'x':
+                    out += strftime(out, "%d/%m/%y", tm);
+                    continue;
+                case 'X':
+                    out += strftime(out, "%H:%M:%S", tm);
+                    continue;
+                default:
+                    (out++)[0] = '%';
+                    (out++)[0] = c;
+                    continue;
+            }
+        }
+
+        out[0] = 0;
+        return (size_t)(out - buf);
     }
 
 
-/*
-    df_date_t& operator=(const char* strdate) {
-        parse_date(strdate, DEFAULT_FORMAT);
-        return *this;
-    }*/
 
 
 
-    df_date_t(const df_date_t& other) noexcept {
-        t = other.t;
-    }
-
-
-
-    // == parse ==
-
-        // parse month
-    size_t parse_month(const char* strmonth, size_t n, int* month) {
+    static size_t parse_month(const char* strmonth, size_t n, int* month) {
         for (int i = 0; i < 12; i++) {
             if (df_strncasecmp(strmonth, DF_MONTHS_FULL_NAMES[i], n) == 0) {
                 *month = i;
@@ -440,7 +441,7 @@ public:
     }
 
     // parse weekday
-    size_t parse_weekday(const char* strweek, size_t n, int* week) {
+    static size_t parse_weekday(const char* strweek, size_t n, int* week) {
         for (int i = 0; i < 7; i++) {
             if (df_strncasecmp(strweek, DF_WEEKDAYS_NAMES[i], n) == 0) {
                 *week = i + 1;
@@ -452,16 +453,17 @@ public:
 
     // self strptime for parsing time in win32
     // ! be causeful since this method will not complete all values
-    int parse_time(const char* strdate, const char* fmt, struct tm* tm) {
+    static int parse(const char* date_str, const char* fmt, struct tm* tm) {
         const char* fmt_start = fmt;
         int symbol, c;
         char buffer[10];
         int temp;
 
         // == reset tm values ==
-        tm->tm_hour = 0;
         tm->tm_mon = 0;
         tm->tm_mday = 1;
+
+        tm->tm_hour = 0;
 
         // == start parse ==
 
@@ -470,7 +472,7 @@ public:
             // symbol is normal char: clear anything not suit to fmt
             if (symbol != '%') {
         filter:
-                while ((c = *(strdate++)) && c != symbol);
+                while ((c = *(date_str++)) && c != symbol);
 
                 if (c == 0) {
                     break;
@@ -479,7 +481,7 @@ public:
             }
 
             // == parse ==
-            // if have known size, move strdate pointer and continue
+            // if have known size, move date_str pointer and continue
             // if unknown size, continue to move by filter (!no savity)
             symbol = *(fmt++);
 
@@ -488,7 +490,7 @@ public:
                 case '%':
                     goto filter;
                 case 'Y':
-                    if (df_sscanf(strdate, "%04d", &tm->tm_year) == 0) {
+                    if (df_sscanf(date_str, "%04d", &tm->tm_year) == 0) {
                         return -1;
                     }
 
@@ -496,88 +498,88 @@ public:
                     temp = 4;
                     goto label_pass;
                 case 'y':
-                    df_sscanf(strdate, "%02d", &tm->tm_year);
+                    df_sscanf(date_str, "%02d", &tm->tm_year);
                     tm->tm_year += 100; // 2000 - 1900
                     temp = 2;
                     goto label_pass;
                 case 'm':
-                    df_sscanf(strdate, "%02d", &tm->tm_mon);
+                    df_sscanf(date_str, "%02d", &tm->tm_mon);
                     tm->tm_mon -= 1;
                     temp = 2;
                     goto label_pass;
                 case 'B':
-                    strdate += parse_month(strdate, 12, &tm->tm_mon);
+                    date_str += parse_month(date_str, 12, &tm->tm_mon);
                     continue;
                 case 'b':
-                    parse_month(strdate, 3, &tm->tm_mon);
+                    parse_month(date_str, 3, &tm->tm_mon);
                     temp = 3;
                     goto label_pass;
                 case 'd':
-                    df_sscanf(strdate, "%02d", &tm->tm_mday);
+                    df_sscanf(date_str, "%02d", &tm->tm_mday);
                     temp = 2;
                     goto label_pass;
                 case 'e':
-                    df_strncpy_s(buffer, sizeof(buffer), strdate, 2);
+                    df_strncpy_s(buffer, sizeof(buffer), date_str, 2);
                     df_sscanf(buffer, "%d", &tm->tm_mday);
                     temp = 2;
                     goto label_pass;
                 case 'j':
-                    df_sscanf(strdate, "%03d", &tm->tm_yday);
+                    df_sscanf(date_str, "%03d", &tm->tm_yday);
                     temp = 3;
                     goto label_pass;
                 case 'A':
-                    strdate += parse_weekday(strdate, 12, &tm->tm_wday);
+                    date_str += parse_weekday(date_str, 12, &tm->tm_wday);
                     continue;
                 case 'a':
-                    parse_weekday(strdate, 3, &tm->tm_wday);
+                    parse_weekday(date_str, 3, &tm->tm_wday);
                     temp = 3;
                     goto label_pass;
                 case 'u':
-                    df_sscanf(strdate, "%01d", &tm->tm_wday);
+                    df_sscanf(date_str, "%01d", &tm->tm_wday);
                     temp = 1;
                     goto label_pass;
                 case 'w':
-                    df_sscanf(strdate, "%01d", &tm->tm_wday);
+                    df_sscanf(date_str, "%01d", &tm->tm_wday);
                     tm->tm_wday = 7 - tm->tm_wday;
                     temp = 1;
                     goto label_pass;
                 
                 // == time parsing ==
                 case 'H':
-                    if (df_sscanf(strdate, "%02d", &tm->tm_hour) == 0) {
+                    if (df_sscanf(date_str, "%02d", &tm->tm_hour) == 0) {
                         return -1;
                     }
                     temp = 2;
                     goto label_pass;
                 case 'l':
-                    df_sscanf(strdate, "%02d", &temp);
+                    df_sscanf(date_str, "%02d", &temp);
                     tm->tm_hour = (tm->tm_hour + temp) % 24;
                     temp = 2;
                     goto label_pass;
                 case 'p':
-                    if (df_strncasecmp(strdate, "PM", 2) == 0) {
+                    if (df_strncasecmp(date_str, "PM", 2) == 0) {
                         tm->tm_hour = (tm->tm_hour + 12) % 24;
-                        strdate += 2;
+                        date_str += 2;
                     }
                     continue;
                 case 'M':
-                    df_sscanf(strdate, "%02d", &tm->tm_min);
+                    df_sscanf(date_str, "%02d", &tm->tm_min);
                     temp = 2;
                     goto label_pass;
                 case 'S':
-                    df_sscanf(strdate, "%02d", &tm->tm_sec);
+                    df_sscanf(date_str, "%02d", &tm->tm_sec);
                     temp = 2;
                     goto label_pass;
                 case 'f':
                     continue;   // micro seconds (unusable)
                 case 'c':
-                    strdate += parse_time(strdate, "%a %b %d %H:%M:%S %Y", tm);
+                    date_str += parse(date_str, "%a %b %d %H:%M:%S %Y", tm);
                     continue;
                 case 'x':
-                    strdate += parse_time(strdate, "%d/%m/%y", tm);
+                    date_str += parse(date_str, "%d/%m/%y", tm);
                     continue;
                 case 'X':
-                    strdate += parse_time(strdate, "%H:%M:%S", tm);
+                    date_str += parse(date_str, "%H:%M:%S", tm);
                     continue;
                     
             }
@@ -585,11 +587,11 @@ public:
             continue;
         label_pass:
             do {
-            if ((c = *(strdate++)) == 0) {
+            if ((c = *(date_str++)) == 0) {
                 return 0;
             }
             if (!isdigit(c)) {
-                strdate--;
+                date_str--;
                 break;
             }
             }
@@ -600,13 +602,50 @@ public:
     }
 
 
-    df_date_t& parse_date(const char* strdate, const char* fmt = DEFAULT_FORMAT) {
-        struct tm tm{};
-        if (parse_time(strdate, fmt, &tm) == 0) {
-            t = df_mktime(&tm);
-        }
-        return *this;
+
+    inline static int get_time_zone() {
+        time_t zero = 0;
+        struct tm* tm;
+        DF_ENV_IS_MSVC(
+            struct tm _tm;
+            localtime_s(&_tm, &zero);
+            tm = &_tm;
+        )
+        DF_ENV_NOT_MSVC(
+            tm = localtime(&zero);
+        )
+        return tm->tm_hour;
     }
+
+
+
+
+
+
+private:
+    time_t t;
+
+    static time_t _parse(const char* date_str, const char* fmt = DEFAULT_FORMAT) {
+        struct tm tm{};
+        if (parse(date_str, fmt, &tm) != 0) {
+            throw df_failed_parse_date_exception_t(date_str, fmt);
+        }
+        return mktime(&tm);
+    }
+
+
+public:
+
+    constexpr df_date_t() : t(0LL) {}
+
+    constexpr df_date_t(time_t t) : t(t DF_ENV_IS_MSVC(+ 2209075200LL)) {}
+
+
+    constexpr df_date_t(const char* date_str, const char* fmt = DEFAULT_FORMAT) : t(_parse(date_str, fmt)) {}
+
+    constexpr df_date_t(const std::string& date_str, const char* fmt = DEFAULT_FORMAT) : t(_parse(date_str.c_str(), fmt)) {}
+
+    constexpr df_date_t(const df_date_t& other) noexcept : t(other.t) {}
 
 
 
@@ -636,7 +675,7 @@ public:
 
     df_date_t& operator+=(const df_interval_t& interval) {
         struct tm _tm;
-        struct tm* tm = df_gmtime(&_tm, &t);
+        struct tm* tm = gmtime(&_tm, &t);
 
         struct tm dest{};
         dest.tm_year = tm->tm_year + interval.years;
@@ -646,7 +685,7 @@ public:
         dest.tm_min = tm->tm_min + interval.minutes;
         dest.tm_sec = tm->tm_sec + interval.seconds;
 
-        t = df_mktime(&dest);
+        t = mktime(&dest);
         return *this;
     }
 
@@ -659,7 +698,7 @@ public:
 
     df_date_t& operator-=(const df_interval_t& interval) {
         struct tm _tm;
-        struct tm* tm = df_gmtime(&_tm, &t);
+        struct tm* tm = gmtime(&_tm, &t);
 
         struct tm dest{};
         dest.tm_year = tm->tm_year - interval.years;
@@ -669,7 +708,7 @@ public:
         dest.tm_min = tm->tm_min - interval.minutes;
         dest.tm_sec = tm->tm_sec - interval.seconds;
 
-        t = df_mktime(&dest);
+        t = mktime(&dest);
         return *this;
     }
 
@@ -685,48 +724,40 @@ public:
     // == converting ==
 
     operator time_t() const {
-        return t DF_ENV_IS_MSVC(- 2208988800LL);
+        return t DF_ENV_IS_MSVC(- 2209075200LL);
     }
 
 
     // == formatting ==
 
-    const char* c_str(const char* fmt = DEFAULT_FORMAT) const {
+    const char* to_gmt_cstr(const char* fmt = DEFAULT_FORMAT, time_t offset = 0) const {
         struct tm _tm;
-        struct tm* tm = df_gmtime(&_tm, &t);
+        time_t t_adjected = t + offset;
+        struct tm* tm = gmtime(&_tm, &t_adjected);
 
-        df_strftime(DF_DATE_FORMATTING_BUFFER, fmt, tm);
+        strftime(DF_DATE_FORMATTING_BUFFER, fmt, tm);
         return DF_DATE_FORMATTING_BUFFER;
     }
 
-    operator std::string() const {
-        return c_str();
+    const char* to_local_cstr(const char* fmt = DEFAULT_FORMAT, time_t offset = 0) const {
+        return to_gmt_cstr(fmt, get_time_zone() * DF_HOUR);
     }
 
-    std::string to_string(const char* fmt = DEFAULT_FORMAT) const {
-        return c_str();
+    
+
+    std::string to_gmt_string(const char* fmt = DEFAULT_FORMAT, time_t offset = 0) const {
+        return to_gmt_cstr(fmt, offset);
     }
 
-    std::string to_local_time_string(const char* fmt = DEFAULT_FORMAT) const {
-        time_t zero = 0;
-        struct tm* tm;
-        DF_ENV_IS_MSVC(
-            struct tm _tm;
-            localtime_s(&_tm, &zero);
-            tm = &_tm;
-        )
-        DF_ENV_NOT_MSVC(
-            tm = localtime(&zero);
-        )
-
-        return (*this + tm->tm_hour * DF_HOUR).c_str(fmt);
+    std::string to_local_string(const char* fmt = DEFAULT_FORMAT) const {
+        return to_gmt_cstr(fmt, get_time_zone() * DF_HOUR);
     }
 
 
     // == std::cout ==
 
     friend std::ostream& operator<<(std::ostream& stream, const df_date_t& date) {
-        return stream << date.c_str();
+        return stream << date.to_gmt_cstr();
     }
 };
 

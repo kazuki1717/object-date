@@ -1,6 +1,9 @@
 # object date (c++)
 
-to handle date by smart object in c++
+df_date_t is a part of my in-making repositories "Simply Dataframe C++" for handle date easier.
+
+
+this date object using independent date calculation system base on unix time.h so that it will take less effects from different system.
 
 | programmer  | かずき     |
 | ----------- | ---------- |
@@ -10,7 +13,7 @@ to handle date by smart object in c++
 ## features
 
 1. parse and format date
-2. move date
+2. adject date
 3. std::cout supportting
 4. customize parse / format support
 5. C std based date calculating

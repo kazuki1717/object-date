@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef DF_DATE_VERSION
-#define DF_DATE_VERSION "c++ 1.5.0 2026-03-25"
+#define DF_DATE_VERSION "c++ 1.6.0 2026-03-26"
 
 
 #include "exception.hpp"
@@ -87,13 +87,26 @@ char* df_strncpy_s(char* dest, size_t dest_limit, const char* src, size_t src_le
 
 class df_interval_t {
 public:
-    int years = 0, months = 0, days = 0;
-    int hours = 0, minutes = 0, seconds = 0;
+    // == exceptions ==
 
-    short on_wday = -1;
-    short on_mday = -1;
-    short on_yday = -1;
+    class invalid_convert_exception_t : public df_exception_t {
+    public:
+        invalid_convert_exception_t() : df_exception_t("cannot convert df_interval_t to value since (year%4 != 0 || month)") {}
+    };
 
+
+    // == variables ==
+
+    int year = 0, month = 0, day = 0;
+    int hour = 0, minute = 0, second = 0;
+
+
+    constexpr df_interval_t(
+            int year = 0, int month = 0, int day = 0,
+            int hour = 0, int minute = 0, int second = 0
+    ):
+    year(year), month(month), day(day),
+    hour(hour), minute(minute), second(second) {}
 
 
     df_interval_t(const char* fmt) {
@@ -101,7 +114,7 @@ public:
         int value = 0;
         int c = *p;
 
-        days = 0;
+        day = 0;
 
         while ((c = *p)) {
             // == skip spaces ==
@@ -127,37 +140,37 @@ public:
             }
 
             if (df_strncasecmp(p, "year", 4) == 0) {
-                years = value;
+                year = value;
                 p += 4;
                 continue;
             }
             if (df_strncasecmp(p, "month", 5) == 0) {
-                months = value;
+                month = value;
                 p += 5;
                 continue;
             }
             if (df_strncasecmp(p, "week", 4) == 0) {
-                days += value * 7;
+                day += value * 7;
                 p += 4;
                 continue;
             }
             if (df_strncasecmp(p, "day", 3) == 0) {
-                days += value;
+                day += value;
                 p += 3;
                 continue;
             }
             if (df_strncasecmp(p, "hour", 4) == 0) {
-                hours += value;
+                hour += value;
                 p += 4;
                 continue;
             }
             if (df_strncasecmp(p, "min", 3) == 0) {
-                minutes += value;
+                minute += value;
                 p += 3;
                 goto label_fix_lessing;
             }
             if (df_strncasecmp(p, "sec", 3) == 0) {
-                seconds = value;
+                second = value;
                 p += 3;
                 continue;
             }
@@ -174,21 +187,27 @@ public:
 
 
 
-    // sum(years, months, ..., seconds), if total < 0, return -1. total == 0, return 0. total > 0, return 1
+    // get direction of shift, direction < 0 to past, direction == 0 to nothing, direction to future
     int get_direction() const {
-        int total = years + months + days + hours + minutes + seconds;
-
-        return total < 0 ? -1
-            : total == 0 ? 0
-            : 1;
+        return year | month | day | hour | minute | second;
     }
 
-    bool is_constant() const {
-        return !(years || months);
+    // check can this interval use to_value() for faster calculation
+    bool can_to_value() const {
+        return !month || (year % 4) != 0;
     }
 
-    time_t calculate_constant() const {
-        return ((((years * 365 + months) * 30 + days) * 24 + hours) * 60 + minutes) * 60 + seconds;
+
+    time_t to_value_noexcept() const noexcept {
+        return (((year * 365.25 + day) * 24 + hour) * 60 + minute) * 60 + second;
+    }
+
+    // convert 
+    time_t to_value() const {
+        if (!can_to_value()) {
+            throw invalid_convert_exception_t();
+        }
+        return to_value_noexcept();
     }
 
 
@@ -198,12 +217,12 @@ public:
         char* p = buffer;
 
         p = df_strncpy_s(p, 256, "df_interval_t(", 14);
-        if (years != 0) p += snprintf(p, 256, "%d year ", years);
-        if (months != 0) p += snprintf(p, 256, "%d month ", months);
-        if (days != 0) p += snprintf(p, 256, "%d day ", days);
-        if (hours != 0) p += snprintf(p, 256, "%d hour ", hours);
-        if (minutes != 0) p += snprintf(p, 256, "%d min ", minutes);
-        if (seconds != 0) p += snprintf(p, 256, "%d sec ", seconds);
+        if (year != 0) p += snprintf(p, 256, "%d year ", year);
+        if (month != 0) p += snprintf(p, 256, "%d month ", month);
+        if (day != 0) p += snprintf(p, 256, "%d day ", day);
+        if (hour != 0) p += snprintf(p, 256, "%d hour ", hour);
+        if (minute != 0) p += snprintf(p, 256, "%d min ", minute);
+        if (second != 0) p += snprintf(p, 256, "%d sec ", second);
         
         if (*(p-1) == ' ') p--;
         *(p++) = ')';
@@ -250,7 +269,7 @@ public:
     // == core methods ==
 
     static time_t mktime(const struct tm* tm) noexcept {
-        time_t seconds = tm->tm_sec + tm->tm_min * DF_MINUTE + tm->tm_hour * DF_HOUR;
+        time_t second = tm->tm_sec + tm->tm_min * DF_MINUTE + tm->tm_hour * DF_HOUR;
 
         // convert yday / month to second
         int year = tm->tm_year;
@@ -259,7 +278,7 @@ public:
         int mday = tm->tm_mday;
 
         if (yday != 0) {
-            seconds += (yday - (yday > 0)) * DF_DAY;
+            second += (yday - (yday > 0)) * DF_DAY;
         }
         else {
             // adject abnormal month
@@ -274,7 +293,7 @@ public:
                 }
             }
 
-            // convert month -> yday -> seconds
+            // convert month -> yday -> second
 
             yday = MONTH_TO_YDAY[month] + mday - 1;
 
@@ -282,15 +301,15 @@ public:
                 yday += 1;
             }
 
-            seconds += yday * DF_DAY;
+            second += yday * DF_DAY;
         }
 
-        // convert year to seconds
+        // convert year to second
         
         int leap_days = year / 4 + (year%4 == 0 ? 0 : 1);
-        seconds += (year * 365 + leap_days) * DF_DAY;
+        second += (year * 365 + leap_days) * DF_DAY;
 
-        return seconds;
+        return second;
     }
 
     /* parse 'time_t' to 'struct tm'
@@ -577,7 +596,7 @@ public:
                     temp = 2;
                     goto label_pass;
                 case 'f':
-                    continue;   // micro seconds (unusable)
+                    continue;   // micro second (unusable)
                 case 'c':
                     date_str += strptime(date_str, "%a %b %d %H:%M:%S %Y", tm);
                     continue;
@@ -685,16 +704,21 @@ public:
 
 
     df_date_t& operator+=(const df_interval_t& interval) {
+        if (interval.can_to_value()) {
+            t += interval.to_value_noexcept();
+            return *this;
+        }
+
         struct tm _tm;
         struct tm* tm = gmtime_s(&_tm, &t);
 
         struct tm dest{};
-        dest.tm_year = tm->tm_year + interval.years;
-        dest.tm_mon = tm->tm_mon + interval.months;
-        dest.tm_mday = tm->tm_mday + interval.days;
-        dest.tm_hour = tm->tm_hour + interval.hours;
-        dest.tm_min = tm->tm_min + interval.minutes;
-        dest.tm_sec = tm->tm_sec + interval.seconds;
+        dest.tm_year = tm->tm_year + interval.year;
+        dest.tm_mon = tm->tm_mon + interval.month;
+        dest.tm_mday = tm->tm_mday + interval.day;
+        dest.tm_hour = tm->tm_hour + interval.hour;
+        dest.tm_min = tm->tm_min + interval.minute;
+        dest.tm_sec = tm->tm_sec + interval.second;
 
         t = mktime(&dest);
         return *this;
@@ -708,16 +732,21 @@ public:
 
 
     df_date_t& operator-=(const df_interval_t& interval) {
+        if (interval.can_to_value()) {
+            t -= interval.to_value_noexcept();
+            return *this;
+        }
+
         struct tm _tm;
         struct tm* tm = gmtime_s(&_tm, &t);
 
         struct tm dest{};
-        dest.tm_year = tm->tm_year - interval.years;
-        dest.tm_mon = tm->tm_mon - interval.months;
-        dest.tm_mday = tm->tm_mday - interval.days;
-        dest.tm_hour = tm->tm_hour - interval.hours;
-        dest.tm_min = tm->tm_min - interval.minutes;
-        dest.tm_sec = tm->tm_sec - interval.seconds;
+        dest.tm_year = tm->tm_year - interval.year;
+        dest.tm_mon = tm->tm_mon - interval.month;
+        dest.tm_mday = tm->tm_mday - interval.day;
+        dest.tm_hour = tm->tm_hour - interval.hour;
+        dest.tm_min = tm->tm_min - interval.minute;
+        dest.tm_sec = tm->tm_sec - interval.second;
 
         t = mktime(&dest);
         return *this;
@@ -795,7 +824,7 @@ public:
 
     // Format this df_date_t to cstring
     // @param fmt A std date foramt string (default: "%Y-%m-%d %H:%M:%S")
-    // @param offset shift date by seconds (default: 0)
+    // @param offset shift date by second (default: 0)
     // @return A cstring show the date by format
     const char* to_gmt_cstr(const char* fmt = DEFAULT_FORMAT, time_t offset = 0) const {
         time_t shifted = t + offset;
@@ -818,7 +847,7 @@ public:
 
     // Format this df_date_t to cstring
     // @param fmt A std date foramt string (default: "%Y-%m-%d %H:%M:%S")
-    // @param offset shift date by seconds (default: 0)
+    // @param offset shift date by second (default: 0)
     // @return A std::string show the date by format
     std::string to_gmt_string(const char* fmt = DEFAULT_FORMAT, time_t offset = 0) const {
         return to_gmt_cstr(fmt, offset);

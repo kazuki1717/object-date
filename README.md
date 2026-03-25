@@ -40,13 +40,13 @@ int main(int argc, char** argv) {
 
     df_date_t date1, date2, date3;
     try {
-    date1 = df_date_t("2013-08-18 00:00:00");                   // parse date with default format, it is independent core `int df_date_t::strptime(date_str, fmt, struct tm* tm)`
-    date2 = df_date_t("2009-05-17");                            // df_date_t will not care lessing part, except no meet one specifier
-    date3 = df_date_t("2026/01/21 16:00", "%Y/%m/%d %H:%M");    // parse date with customize format
+        date1 = df_date_t("2013-08-18 00:00:00");                   // parse date with default format, it is independent core `int df_date_t::strptime(date_str, fmt, struct tm* tm)`
+        date2 = df_date_t("2009-05-17");                            // df_date_t will not care lessing part, except no meet one specifier
+        date3 = df_date_t("2026/01/21 16:00", "%Y/%m/%d %H:%M");    // parse date with customize format
 
-    // success: df_date_t("2026");
-    // error: df_date_t("!@#$%");
-    // error: df_date_t("hello world");
+        // success: df_date_t("2026");
+        // error: df_date_t("!@#$%");
+        // error: df_date_t("hello world");
     }
     catch (df_date_t::parse_exception_t& e) {       // error here if no meet one specifier
         std::cerr << e.what() << "\n";
@@ -108,8 +108,8 @@ int main(int argc, char** argv) {
 object-date version: c++ 1.6.0 2026-03-26
 
 == make date by number ==
-  zero:  gmt 1900-01-01 00:00:00, local 1900-01-01 08:00:00
-  now:   gmt 2026-03-25 16:30:51, local 2026-03-26 00:30:51
+  zero:  gmt 1900-01-01 00:00:00, local 1900-01-01 09:00:00
+  now:   gmt 2026-03-25 16:30:51, local 2026-03-26 01:30:51
 
 == parse date ==
   date1: gmt 2013-08-18 00:00:00, local 2013-08-18 09:00:00

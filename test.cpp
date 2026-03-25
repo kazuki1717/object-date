@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
     std::cout << "  interval_1: " << interval_1 << "\n"
             "  interval_2: " << interval_2 << "\n"
             "  interval_3: " << interval_3 << "\n"
-            "  two_week: " << two_week << "\n"
+            "  two_week: " << two_week << "\n\n"
     ;
 
 

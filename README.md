@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
     std::cout << "  interval_1: " << interval_1 << "\n"
             "  interval_2: " << interval_2 << "\n"
             "  interval_3: " << interval_3 << "\n"
-            "  two_week: " << two_week << "\n"
+            "  two_week: " << two_week << "\n\n"
     ;
 
 
@@ -121,6 +121,7 @@ object-date version: c++ 1.6.0 2026-03-26
   interval_2: df_interval_t(3 year 1 month 4 day 1 hour 5 min 9 sec)
   interval_3: df_interval_t(1 hour 5 min 9 sec)
   two_week: df_interval_t(14 day)
+
 == shift date ==
   date1 (future): 2016-08-21 19:05:09
   date2 (past): 2006-05-13 04:54:51

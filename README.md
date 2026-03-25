@@ -7,8 +7,8 @@ this date object using independent date calculation system base on unix time.h s
 
 | programmer  | かずき     |
 | ----------- | ---------- |
-| version     | 1.3.0      |
-| last update | 2026-02-28 |
+| version     | 1.4.0      |
+| last update | 2026-03-02 |
 
 ## features
 

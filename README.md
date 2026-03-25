@@ -112,9 +112,9 @@ object-date version: c++ 1.6.0 2026-03-26
   now:   gmt 2026-03-25 16:30:51, local 2026-03-26 00:30:51
 
 == parse date ==
-  date1: gmt 2013-08-18 00:00:00, local 2013-08-18 08:00:00
-  date2: gmt 2009-05-17 00:00:00, local 2009-05-17 08:00:00
-  date3: gmt 2026-01-21 16:00:00, local 2026-01-22 00:00:00
+  date1: gmt 2013-08-18 00:00:00, local 2013-08-18 09:00:00
+  date2: gmt 2009-05-17 00:00:00, local 2009-05-17 09:00:00
+  date3: gmt 2026-01-21 16:00:00, local 2026-01-22 01:00:00
 
 == create df_interval_t instance ==
   interval_1: df_interval_t(3 year 1 month 4 day 1 hour 5 min 9 sec)

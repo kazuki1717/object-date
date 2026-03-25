@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef DF_DATE_VERSION
-#define DF_DATE_VERSION "c++ 1.4.0 2026-03-02"
+#define DF_DATE_VERSION "c++ 1.5.0 2026-03-25"
 
 
 #include "exception.hpp"
@@ -23,15 +23,6 @@ char DF_DATE_FORMATTING_BUFFER[256]{};
 constexpr time_t DF_MINUTE = 60;
 constexpr time_t DF_HOUR = 60 * DF_MINUTE;
 constexpr time_t DF_DAY = 24 * DF_HOUR;
-
-
-// == exceptions ==
-
-class df_failed_parse_date_exception_t : public df_exception_t {
-public:
-    df_failed_parse_date_exception_t(const char* date_str, const char* fmt) : df_exception_t("failed to parse date since '%s' there are no meet anyone specifier in '%s'", date_str, fmt) {}
-};
-
 
 
 // == pre-processer ==
@@ -239,11 +230,19 @@ public:
 
 class df_date_t {
 public:
+    // == exceptions ==
+
+    class parse_exception_t : public df_exception_t {
+    public:
+        parse_exception_t(const char* date_str, const char* fmt) : df_exception_t("failed to parse date since '%s' there are no meet anyone specifier in '%s'", date_str, fmt) {}
+    };
+
+
     // == core constants ==
 
     constexpr static char DEFAULT_FORMAT[] = "%Y-%m-%d %H:%M:%S";
 
-    constexpr static int MONTH_TO_YDAY[13] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 366};
+    constexpr static int MONTH_TO_YDAY[13] = {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365};
     constexpr static char MONTHS_NAMES[12][12] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
     constexpr static char WEEKDAYS_NAMES[7][10] = {"Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"};
 
@@ -294,53 +293,56 @@ public:
         return seconds;
     }
 
-    static struct tm* gmtime(struct tm* tm, const time_t* t) noexcept {
-        DF_ENV_IS_MSVC(
-            time_t less = *t;
+    /* parse 'time_t' to 'struct tm'
+    
+    **sample output df_date_t("2026-03-25")**
 
-            // == week day ==
+    tm->tm_year     = 126;
+    tm->tm_month    = 2;
+    tm->tm_mday     = 
+    */
+    static struct tm* gmtime_s(struct tm* tm, const time_t* t) noexcept {
+        time_t less = *t;
 
-            tm->tm_wday = (less / DF_DAY) % 7;
-            if (tm->tm_wday < 0) {
-                tm->tm_wday = 7 + tm->tm_wday;
+        // == week day ==
+
+        tm->tm_wday = (less / DF_DAY) % 7;
+        if (tm->tm_wday < 0) {
+            tm->tm_wday = 7 + tm->tm_wday;
+        }
+        tm->tm_wday += 1;
+
+        // == year ==
+        
+        int leap_days = (less + 1401 * DF_DAY) / (1461 * DF_DAY);
+        less -= leap_days * DF_DAY;
+
+        tm->tm_year = less / (365 * DF_DAY);
+        less -= tm->tm_year * 365 * DF_DAY;
+
+        // == month and day ==
+
+        tm->tm_yday = less / DF_DAY + 1;
+        less %= DF_DAY;
+
+        // find month and mday
+        for (int i = 1; i < 13; i++) {
+            if (tm->tm_yday <= MONTH_TO_YDAY[i]) {
+                tm->tm_mon = i - 1;
+                tm->tm_mday = tm->tm_yday - MONTH_TO_YDAY[tm->tm_mon];
+                break;
             }
-            tm->tm_wday += 1;
+        }
 
-            // == year ==
-            
-            int leap_days = (less + 1401 * DF_DAY) / (1461 * DF_DAY);
-            less -= leap_days * DF_DAY;
+        // == time ==
 
-            tm->tm_year = less / (365 * DF_DAY);
-            less -= tm->tm_year * 365 * DF_DAY;
+        tm->tm_hour = less / DF_HOUR;
+        less %= DF_HOUR;
 
-            // == month and day ==
+        tm->tm_min = less / DF_MINUTE;
+        tm->tm_sec = less - tm->tm_min * DF_MINUTE;
 
-            tm->tm_yday = less / DF_DAY + 1;
-            less %= DF_DAY;
-
-            // find month and mday
-            for (int i = 1; i < 13; i++) {
-                if (tm->tm_yday <= MONTH_TO_YDAY[i]) {
-                    tm->tm_mon = i - 1;
-                    tm->tm_mday = tm->tm_yday - MONTH_TO_YDAY[tm->tm_mon];
-                    break;
-                }
-            }
-
-            // == time ==
-
-            tm->tm_hour = less / DF_HOUR;
-            less %= DF_HOUR;
-
-            tm->tm_min = less / DF_MINUTE;
-            tm->tm_sec = less - tm->tm_min * DF_MINUTE;
-
-            return tm;
-        )
-        DF_ENV_NOT_MSVC(
-            return gmtime(t);
-        )
+        return tm;
     }
 
     static size_t strftime(char* buf, const char* fmt, const struct tm* tm) noexcept {
@@ -432,9 +434,6 @@ public:
         out[0] = 0;
         return (size_t)(out - buf);
     }
-
-
-
 
 
     static size_t parse_month(const char* strmonth, size_t n, int* month) noexcept {
@@ -635,7 +634,7 @@ private:
     static time_t _parse(const char* date_str, const char* fmt = DEFAULT_FORMAT) {
         struct tm tm{};
         if (strptime(date_str, fmt, &tm) != 0) {
-            throw df_failed_parse_date_exception_t(date_str, fmt);
+            throw parse_exception_t(date_str, fmt);
         }
         return mktime(&tm);
     }
@@ -647,8 +646,14 @@ public:
     constexpr df_date_t(time_t t) : t(t DF_ENV_IS_MSVC(+ 2209075200LL)) {}
 
 
+    // parse date_str by fmt
+    // @param date_str A date string suit to `fmt`
+    // @param fmt std date format string (default: "%Y-%m-%d %H:%M:%S")
     constexpr df_date_t(const char* date_str, const char* fmt = DEFAULT_FORMAT) : t(_parse(date_str, fmt)) {}
 
+    // parse date_str by fmt
+    // @param date_str A date string suit to `fmt`
+    // @param fmt std date format string (default: "%Y-%m-%d %H:%M:%S")
     constexpr df_date_t(const std::string& date_str, const char* fmt = DEFAULT_FORMAT) : t(_parse(date_str.c_str(), fmt)) {}
 
     constexpr df_date_t(const df_date_t& other) noexcept : t(other.t) {}
@@ -681,7 +686,7 @@ public:
 
     df_date_t& operator+=(const df_interval_t& interval) {
         struct tm _tm;
-        struct tm* tm = gmtime(&_tm, &t);
+        struct tm* tm = gmtime_s(&_tm, &t);
 
         struct tm dest{};
         dest.tm_year = tm->tm_year + interval.years;
@@ -704,7 +709,7 @@ public:
 
     df_date_t& operator-=(const df_interval_t& interval) {
         struct tm _tm;
-        struct tm* tm = gmtime(&_tm, &t);
+        struct tm* tm = gmtime_s(&_tm, &t);
 
         struct tm dest{};
         dest.tm_year = tm->tm_year - interval.years;
@@ -723,6 +728,58 @@ public:
     }
 
 
+    // == compare ==
+
+    bool operator==(const df_date_t& other) const {
+        return t == other.t;
+    }
+
+    bool operator!=(const df_date_t& other) const {
+        return t != other.t;
+    }
+
+    bool operator<(const df_date_t& other) const {
+        return t < other.t;
+    }
+
+    bool operator>(const df_date_t& other) const {
+        return t > other.t;
+    }
+
+
+
+    // == get ==
+
+    // Get the last day of the month based on this df_date_t,
+    // similar to Excel's `=EOMONTH(time, offset = 0)` function
+    // @param offset shift month.
+    //          0 = current month, 1 = next month, -1 = previous month
+    // @return A df_date_t representing the last day of the targeted month.
+    //      Examples:   2026-02-28 from 2026-02-16
+    //                  2013-08-31 from 2013-08-08
+    //                  2020-02-29 from 2020-02-03
+    df_date_t get_month_last(int offset = 0) const {
+        struct tm _tm;
+        struct tm* tm = gmtime_s(&_tm, &t);
+
+        tm->tm_mon += offset;
+        if (tm->tm_mon < 0 || tm->tm_mon > 12) {
+            tm->tm_year += tm->tm_mon / 12;
+            tm->tm_mon %= 12;
+
+            if (tm->tm_mon < 0) {
+                tm->tm_year -= 1;
+                tm->tm_mon = 12 + tm->tm_mon;
+            }
+        }
+
+        tm->tm_yday = MONTH_TO_YDAY[tm->tm_mon + 1] + (tm->tm_year % 4 == 0);
+
+        df_date_t out;
+        out.t = mktime(tm);
+        return out;
+    }
+
 
 
 
@@ -736,25 +793,40 @@ public:
 
     // == formatting ==
 
+    // Format this df_date_t to cstring
+    // @param fmt A std date foramt string (default: "%Y-%m-%d %H:%M:%S")
+    // @param offset shift date by seconds (default: 0)
+    // @return A cstring show the date by format
     const char* to_gmt_cstr(const char* fmt = DEFAULT_FORMAT, time_t offset = 0) const {
+        time_t shifted = t + offset;
+
         struct tm _tm;
-        time_t t_adjected = t + offset;
-        struct tm* tm = gmtime(&_tm, &t_adjected);
+        struct tm* tm = gmtime_s(&_tm, &shifted);
 
         strftime(DF_DATE_FORMATTING_BUFFER, fmt, tm);
         return DF_DATE_FORMATTING_BUFFER;
     }
 
-    const char* to_local_cstr(const char* fmt = DEFAULT_FORMAT, time_t offset = 0) const {
+    // Format this df_date_t to cstring in local time
+    // @param fmt A std date foramt string (default: "%Y-%m-%d %H:%M:%S")
+    // @return A cstring show the date by format
+    const char* to_local_cstr(const char* fmt = DEFAULT_FORMAT) const {
         return to_gmt_cstr(fmt, get_time_zone() * DF_HOUR);
     }
 
     
 
+    // Format this df_date_t to cstring
+    // @param fmt A std date foramt string (default: "%Y-%m-%d %H:%M:%S")
+    // @param offset shift date by seconds (default: 0)
+    // @return A std::string show the date by format
     std::string to_gmt_string(const char* fmt = DEFAULT_FORMAT, time_t offset = 0) const {
         return to_gmt_cstr(fmt, offset);
     }
 
+    // Format this df_date_t to cstring in local time
+    // @param fmt A std date foramt string (default: "%Y-%m-%d %H:%M:%S")
+    // @return A std::string show the date by format
     std::string to_local_string(const char* fmt = DEFAULT_FORMAT) const {
         return to_gmt_cstr(fmt, get_time_zone() * DF_HOUR);
     }
@@ -766,6 +838,13 @@ public:
         return stream << date.to_gmt_cstr();
     }
 };
+
+
+
+
+// == alias ==
+
+using df_failed_parse_date_exception_t = df_date_t::parse_exception_t;
 
 
 #endif // DF_DATE_VERSION

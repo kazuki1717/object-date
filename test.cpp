@@ -2,15 +2,19 @@
 #include <iostream>
 
 int main(int argc, char** argv) {
-    // == print df_date_t version ==
-    std::cout << "df_date_t version: " << DF_DATE_VERSION << "\n\n";
+    std::cout << "object-date version: " << DF_DATE_VERSION << "\n\n";
 
-    // == make df_date_t ==
+
+    std::cout << "== make date by number ==\n";
 
     df_date_t zero;                 // zero, mean 1900-01-01 00:00:00
     df_date_t now = time(nullptr);  // get current time
 
-    // parse
+    std::cout << "  zero:  gmt " << zero << ", local " << zero.to_local_cstr() << "\n"      // to_local_cstr() or to_local_string() to get local time string
+            << "  now:   gmt " << now << ", local " << now.to_local_string() << "\n\n"    // gmt is default but you can also use to_gmt_cstr() or to_gmt_string()
+    ;
+
+    std::cout << "== parse date ==\n";
 
     df_date_t date1, date2, date3;
     try {
@@ -26,13 +30,10 @@ int main(int argc, char** argv) {
         std::cerr << e.what() << "\n";
     }
 
-
-    std::cout << "== making df_date_t ==\n"
-            << "  zero:  gmt " << zero << ", local " << zero.to_local_cstr() << "\n"      // to_local_cstr() or to_local_string() to get local time string
-            << "  now:   gmt " << now << ", local " << now.to_local_string() << "\n\n"    // gmt is default but you can also use to_gmt_cstr() or to_gmt_string()
-
-            << "  date1: gmt " << date1 << ", local " << date1.to_local_cstr() << "\n"
-            << "  date2: gmt " << date2 << ", local " << date2.to_local_string() << "\n\n";
+    std::cout << "  date1: gmt " << date1 << ", local " << date1.to_local_cstr() << "\n"
+            << "  date2: gmt " << date2 << ", local " << date2.to_local_string() << "\n"
+            << "  date3: gmt " << date3 << ", local " << date3.to_local_string() << "\n\n"
+    ;
 
   
     // == adject date ==
@@ -43,15 +44,22 @@ int main(int argc, char** argv) {
 
     std::cout << "== adject date ==\n"
             << "  interval: " << interval << "\n"
-	    << "  move front: " << date1 << "\n"
-            << "  move back: " << date2 << "\n\n";
+            << "  date1 (future): " << date1 << "\n"
+            << "  date2 (past): " << date2 << "\n\n"
+    ;
 
-  
 
     df_interval_t two_week("2 week");   // 2 week == 14 day
     date1 += df_interval_t("2 week");
 
-    std::cout << "week keyword used: " << date1 << "\n\n";
+    std::cout << "  date1 (future 2 week): " << date1 << "\n\n";
+
+
+    std::cout << "== get last day of month ==\n"
+            << "  current month: " << df_date_t(now).get_month_last() << "\n"
+            << "  future 3 month: " << df_date_t(now).get_month_last(3) << "\n"
+            << "  past 3 month: " << df_date_t(now).get_month_last(-3) << "\n"
+    ;
 
     return 0;
 }

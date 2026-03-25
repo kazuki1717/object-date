@@ -7,8 +7,8 @@ this date object using independent date calculation system base on unix time.h s
 
 | programmer  | かずき     |
 | ----------- | ---------- |
-| version     | 1.4.0      |
-| last update | 2026-03-02 |
+| version     | 1.5.0      |
+| last update | 2026-03-25 |
 
 ## features
 
@@ -25,15 +25,19 @@ this date object using independent date calculation system base on unix time.h s
 #include <iostream>
 
 int main(int argc, char** argv) {
-    // == print df_date_t version ==
-    std::cout << "df_date_t version: " << DF_DATE_VERSION << "\n\n";
+    std::cout << "object-date version: " << DF_DATE_VERSION << "\n\n";
 
-    // == make df_date_t ==
+
+    std::cout << "== make date by number ==\n";
 
     df_date_t zero;                 // zero, mean 1900-01-01 00:00:00
     df_date_t now = time(nullptr);  // get current time
 
-    // parse
+    std::cout << "  zero:  gmt " << zero << ", local " << zero.to_local_cstr() << "\n"      // to_local_cstr() or to_local_string() to get local time string
+            << "  now:   gmt " << now << ", local " << now.to_local_string() << "\n\n"    // gmt is default but you can also use to_gmt_cstr() or to_gmt_string()
+    ;
+
+    std::cout << "== parse date ==\n";
 
     df_date_t date1, date2, date3;
     try {
@@ -49,13 +53,10 @@ int main(int argc, char** argv) {
         std::cerr << e.what() << "\n";
     }
 
-
-    std::cout << "== making df_date_t ==\n"
-            << "  zero:  gmt " << zero << ", local " << zero.to_local_cstr() << "\n"      // to_local_cstr() or to_local_string() to get local time string
-            << "  now:   gmt " << now << ", local " << now.to_local_string() << "\n\n"    // gmt is default but you can also use to_gmt_cstr() or to_gmt_string()
-
-            << "  date1: gmt " << date1 << ", local " << date1.to_local_cstr() << "\n"
-            << "  date2: gmt " << date2 << ", local " << date2.to_local_string() << "\n\n";
+    std::cout << "  date1: gmt " << date1 << ", local " << date1.to_local_cstr() << "\n"
+            << "  date2: gmt " << date2 << ", local " << date2.to_local_string() << "\n"
+            << "  date3: gmt " << date3 << ", local " << date3.to_local_string() << "\n\n"
+    ;
 
   
     // == adject date ==
@@ -66,15 +67,22 @@ int main(int argc, char** argv) {
 
     std::cout << "== adject date ==\n"
             << "  interval: " << interval << "\n"
-	    << "  move front: " << date1 << "\n"
-            << "  move back: " << date2 << "\n\n";
+            << "  date1 (future): " << date1 << "\n"
+            << "  date2 (past): " << date2 << "\n\n"
+    ;
 
-  
 
     df_interval_t two_week("2 week");   // 2 week == 14 day
     date1 += df_interval_t("2 week");
 
-    std::cout << "week keyword used: " << date1 << "\n\n";
+    std::cout << "  date1 (future 2 week): " << date1 << "\n\n";
+
+
+    std::cout << "== get last day of month ==\n"
+            << "  current month: " << df_date_t(now).get_month_last() << "\n"
+            << "  future 3 month: " << df_date_t(now).get_month_last(3) << "\n"
+            << "  past 3 month: " << df_date_t(now).get_month_last(-3) << "\n"
+    ;
 
     return 0;
 }
@@ -84,19 +92,27 @@ int main(int argc, char** argv) {
 **sample output**
 
 ```
-df_date_t version: c++ 1.4.0 2026-03-02
+object-date version: c++ 1.5.0 2026-03-25
 
-== making df_date_t ==
-  zero:  gmt 1900-01-01 00:00:00, local 1900-01-01 09:00:00
-  now:   gmt 2026-03-02 00:00:00, local 2026-03-02 09:00:00
+== make date by number ==
+  zero:  gmt 1900-01-01 00:00:00, local 1900-01-01 08:00:00
+  now:   gmt 2026-03-25 10:29:15, local 2026-03-25 18:29:15
 
-  date1: gmt 2013-08-18 00:00:00, local 2013-08-18 09:00:00
-  date2: gmt 2009-05-17 00:00:00, local 2009-05-17 09:00:00
+== parse date ==
+  date1: gmt 2013-08-18 00:00:00, local 2013-08-18 08:00:00
+  date2: gmt 2009-05-17 00:00:00, local 2009-05-17 08:00:00
+  date3: gmt 2026-01-21 16:00:00, local 2026-01-22 00:00:00
 
 == adject date ==
   interval: df_interval_t(3 year 1 month 4 day 1 hour 5 min 9 sec)
-  move front: 2016-09-22 01:05:09
-  move back: 2006-04-12 22:54:51
+  date1 (future): 2016-09-22 01:05:09
+  date2 (past): 2006-04-12 22:54:51
 
-week keyword used: 2016-10-06 01:05:09
+  date1 (future 2 week): 2016-10-06 01:05:09
+
+== get last day of month ==
+  current month: 2026-03-31 10:29:15
+  future 3 month: 2026-06-30 10:29:15
+  past 3 month: 2025-12-31 10:29:15
+
 ```
